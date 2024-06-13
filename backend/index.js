@@ -1,7 +1,7 @@
 const express = require('express');
 const axios = require('axios');
 const dotenv = require('dotenv');
-
+const cors = require('cors');
 dotenv.config();
 
 const app = express();
@@ -15,6 +15,11 @@ const CATEGORIES = [
     'Mouse', 'Keypad', 'Bluetooth', 'Pendrive', 'Remote', 'Speaker',
     'Headset', 'Laptop', 'PC'
 ];
+app.use(cors({
+    origin: "*",
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    credentials: true,
+}));
 
 // Access token
 const TOKEN = process.env.TOKEN || "YOUR_ACCESS_TOKEN";
@@ -72,10 +77,13 @@ app.get('/categories/:categoryname/products', async (req, res) => {
             }
         });
 
+        const totalProducts = products.length;
+
         // Pagination logic
         const startIndex = (page - 1) * n;
         const paginatedProducts = products.slice(startIndex, startIndex + n);
 
+        res.set('x-total-count', totalProducts);
         res.json(paginatedProducts);
     } catch (error) {
         console.error('Error fetching products:', error);
