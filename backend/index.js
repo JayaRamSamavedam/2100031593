@@ -17,7 +17,7 @@ const CATEGORIES = [
 ];
 
 // Access token
-const TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJNYXBDbGFpbXMiOnsiZXhwIjoxNzE4MjU2NzQyLCJpYXQiOjE3MTgyNTY0NDIsImlzcyI6IkFmZm9yZG1lZCIsImp0aSI6ImE5YTQxZmQyLWEyYjctNGU2Yy1iZDQ5LTI4ZTAyMjYyYmEzMiIsInN1YiI6IjIxMDAwMzE1OTNjc2VoQGdtYWlsLmNvbSJ9LCJjb21wYW55TmFtZSI6IksgTCBVbml2ZXJzaXR5IiwiY2xpZW50SUQiOiJhOWE0MWZkMi1hMmI3LTRlNmMtYmQ0OS0yOGUwMjI2MmJhMzIiLCJjbGllbnRTZWNyZXQiOiJFY1VWU01zRlNsY2FGaU9TIiwib3duZXJOYW1lIjoiSmF5YSBSYW0gU2FtYXZlZGFtIiwib3duZXJFbWFpbCI6IjIxMDAwMzE1OTNjc2VoQGdtYWlsLmNvbSIsInJvbGxObyI6IjIxMDAwMzE1OTMifQ.SoAdl0TPIf9t766AeJKAsZAwKbLNA7aAu3HJftdNHms";
+const TOKEN = process.env.TOKEN || "YOUR_ACCESS_TOKEN";
 
 // Middleware to validate category and company
 app.use('/categories/:categoryname/products', (req, res, next) => {
@@ -41,18 +41,18 @@ const fetchProducts = async (categoryname, n, minPrice, maxPrice) => {
             headers: {
                 'Authorization': `Bearer ${TOKEN}`
             }
-        }).then(response => response.data).catch(error => {
+        }).then(response => response.data.map(product => ({
+            ...product,
+            id: generateUniqueId(),
+            company
+        }))).catch(error => {
             console.error(`Error fetching products from ${company}:`, error);
             return [];
         });
     });
 
     const allProducts = await Promise.all(productPromises);
-    return allProducts.flat().map(product => ({
-        ...product,
-        id: generateUniqueId(),
-        company: product.company || 'Unknown'
-    }));
+    return allProducts.flat();
 };
 
 // Route to get top N products within a category
@@ -86,23 +86,6 @@ app.get('/categories/:categoryname/products', async (req, res) => {
 // Store fetched products in memory for quick retrieval by ID
 const productCache = {};
 
-// Mock function to fetch product by ID
-const getProductById = (id) => {
-    return productCache[id] || null;
-};
-
-// Route to get details of a specific product by ID
-app.get('/products/:id', (req, res) => {
-    const { id } = req.params;
-    const product = getProductById(id);
-
-    if (product) {
-        res.json(product);
-    } else {
-        res.status(404).json({ error: 'Product not found' });
-    }
-});
-
 // Populate the cache whenever products are fetched
 app.get('/categories/:categoryname/products', async (req, res) => {
     const { categoryname } = req.params;
@@ -133,6 +116,18 @@ app.get('/categories/:categoryname/products', async (req, res) => {
     } catch (error) {
         console.error('Error fetching products:', error);
         res.status(500).json({ error: 'Failed to fetch products' });
+    }
+});
+
+// Route to get details of a specific product by ID
+app.get('/products/:id', (req, res) => {
+    const { id } = req.params;
+    const product = productCache[id];
+
+    if (product) {
+        res.json(product);
+    } else {
+        res.status(404).json({ error: 'Product not found' });
     }
 });
 
